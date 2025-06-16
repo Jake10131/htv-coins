@@ -9,8 +9,8 @@ host="https://hanime.tv"
 session_file="htv.session"
 XSig=$(getSHA256 "9944822${XClaim}8${XClaim}113")
 
-hanime_email=${EMAIL:-"$1"}
-hanime_password=${PASSWORD:-"$2"}
+hanime_email=${HTV_EMAIL:-"$1"}
+hanime_password=${HTV_PASSWORD:-"$2"}
 webhook=${WEBHOOK:-"$3"}
 
 if [ -z "$hanime_email" ] || [ -z "$hanime_password" ]; then
