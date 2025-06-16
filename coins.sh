@@ -9,9 +9,9 @@ host="https://hanime.tv"
 session_file="htv.session"
 XSig=$(getSHA256 "9944822${XClaim}8${XClaim}113")
 
-hanime_email=${HTV_EMAIL:-"$1"}
-hanime_password=${HTV_PASSWORD:-"$2"}
-
+hanime_email=${EMAIL:-"$1"}
+hanime_password=${PASSWORD:-"$2"}
+webhook=${WEBHOOK:-"$3"}
 
 if [ -z "$hanime_email" ] || [ -z "$hanime_password" ]; then
     echo "[!] Please provide your hanime email and password as arguments or set env vars for 'HTV_EMAIL' and 'HTV_PASSWORD' since '$session_file' is missing."
@@ -39,6 +39,7 @@ get_coins() {
     local session_token="$1"
     local version="$2"
     local uid="$3"
+    local info="$4"
     local curr_time=$(date +%s)
     local to_hash="coins${version}|${uid}|${curr_time}|coins${version}"
     local reward_token=$(getSHA256 "${to_hash}")
@@ -48,7 +49,19 @@ get_coins() {
         echo "[!] Something went wrong. Most probably you have already collected your coins."
         exit 1
     fi
-    echo "You received $(echo "${response}" | jq -r '.rewarded_amount') coins."
+    local rewarded_coin=$(echo "${response}" | jq -r '.rewarded_amount')
+    local username=$(echo "${info}" | jq -r .user.name)
+    local last_clicked=$(echo "${info}" | jq -r .user.last_rewarded_ad_clicked_at)
+    local premium_status=$(echo "${info}" | jq -r .user.alt_premium_status)
+    local premium_expiry=$(echo "${info}" | jq -r .user.alt_subscription_period_end)
+    local coins_after=$(echo "${info}" | jq -r .user.coins)
+    local current_coins=$((coins_after + rewarded_coin))
+    if [[ -n "$webhook" ]]; then
+        local message="[*] User: ${username} [${uid}]\n[*] Coins: ${coins_after}\n[*] Clicked on: ${last_clicked}\n[*] You received ${rewarded_coin} coins.\n[*] Current coins: ${current_coins}\n[*] Premium: ${premium_status}\n[*] Subscription end date: ${premium_expiry}"
+        curl -s -X POST "$webhook" -H "Content-Type: application/json" -d "{\"content\":\"$message\"}"
+    fi
+    echo "[*] Coins collected successfully."
+    echo "[*] You received ${rewarded_coin} coins."
 }
 
 main() {
@@ -97,14 +110,14 @@ main() {
     if [[ $last_click_date ]]; then
         predicted_time=$(date -d $last_click_date+3hours +"%s")
         if [[ "$current_time" > $predicted_time ]]; then
-            get_coins $session_token $version $uid
+            get_coins $session_token $version $uid $info
         else
             local next_time_readble=$(date -d @$predicted_time '+%F %T')
             echo "[!] You have to wait till ${next_time_readble} to collect anymore coins"
         fi
     else
         echo "[#] First time?"
-        get_coins $session_token $version $uid
+        get_coins $session_token $version $uid $info
     fi
     
 }
