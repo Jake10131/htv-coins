@@ -7,6 +7,7 @@ on:
 env:
   HTV_EMAIL: "${{ secrets.HTV_EMAIL }}"
   HTV_PASSWORD: "${{ secrets.HTV_PASSWORD }}"
+  WEBHOOK: "${{ secrets.WEBHOOK }}"
 
 jobs:
   build:
