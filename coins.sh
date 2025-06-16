@@ -110,14 +110,14 @@ main() {
     if [[ $last_click_date ]]; then
         predicted_time=$(date -d $last_click_date+3hours +"%s")
         if [[ "$current_time" > $predicted_time ]]; then
-            get_coins $session_token $version $uid $info
+            get_coins $session_token $version $uid "$info"
         else
             local next_time_readble=$(date -d @$predicted_time '+%F %T')
             echo "[!] You have to wait till ${next_time_readble} to collect anymore coins"
         fi
     else
         echo "[#] First time?"
-        get_coins $session_token $version $uid $info
+        get_coins $session_token $version $uid "$info"
     fi
     
 }
