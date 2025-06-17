@@ -39,7 +39,11 @@ get_coins() {
     local session_token="$1"
     local version="$2"
     local uid="$3"
-    local info="$4"
+    local username="$4"
+    local last_clicked="$5"
+    local coins_previous="$6"
+    local premium_status="$7"
+    local premium_expiry="$8"
     local curr_time=$(date +%s)
     local to_hash="coins${version}|${uid}|${curr_time}|coins${version}"
     local reward_token=$(getSHA256 "${to_hash}")
@@ -50,14 +54,9 @@ get_coins() {
         exit 1
     fi
     local rewarded_coin=$(echo "${response}" | jq -r '.rewarded_amount')
-    local username=$(echo "${info}" | jq -r .user.name)
-    local last_clicked=$(echo "${info}" | jq -r .user.last_rewarded_ad_clicked_at)
-    local premium_status=$(echo "${info}" | jq -r .user.alt_premium_status)
-    local premium_expiry=$(echo "${info}" | jq -r .user.alt_subscription_period_end)
-    local coins_after=$(echo "${info}" | jq -r .user.coins)
-    local current_coins=$((coins_after + rewarded_coin))
+    local current_coins=$((coins_previous + rewarded_coin))
     if [[ -n "$webhook" ]]; then
-        local message="[*] User: ${username} [${uid}]\n[*] Coins: ${coins_after}\n[*] Clicked on: ${last_clicked}\n[*] You received ${rewarded_coin} coins.\n[*] Current coins: ${current_coins}\n[*] Premium: ${premium_status}\n[*] Subscription end date: ${premium_expiry}"
+        local message="\`\`\` User: ${username} [${uid}]\n Coins: ${coins_previous}\n Clicked on: ${last_clicked}\n You received ${rewarded_coin} coins.\n Current coins: ${current_coins}\n Premium: ${premium_status}\n Subscription end date: ${premium_expiry} \`\`\`"
         curl -s -X POST "$webhook" -H "Content-Type: application/json" -d "{\"content\":\"$message\"}"
     fi
     echo "[*] Coins collected successfully."
@@ -102,6 +101,8 @@ main() {
     local coins=$(echo "${info}" | jq -r .user.coins)
     local last_click_date=$(echo "${info}" | jq -r .user.last_rewarded_ad_clicked_at)
     local version=$(echo "${info}" | jq -r .env.mobile_apps._build_number)
+    local premium_status=$(echo "${info}" | jq -r .user.alt_premium_status)
+    local premium_expiry=$(echo "${info}" | jq -r .user.alt_subscription_period_end)
     echo "[*] Logged in as ${name} [$uid]"
     echo "[*] Coins count: ${coins}"
     echo "[*] Last coins claimed on: ${last_click_date}"
@@ -110,14 +111,14 @@ main() {
     if [[ $last_click_date ]]; then
         predicted_time=$(date -d $last_click_date+3hours +"%s")
         if [[ "$current_time" > $predicted_time ]]; then
-            get_coins $session_token $version $uid "$info"
+            get_coins $session_token $version $uid $name $last_click_date $coins $premium_status $premium_expiry
         else
             local next_time_readble=$(date -d @$predicted_time '+%F %T')
             echo "[!] You have to wait till ${next_time_readble} to collect anymore coins"
         fi
     else
         echo "[#] First time?"
-        get_coins $session_token $version $uid "$info"
+        get_coins $session_token $version $uid $name $last_click_date $coins $premium_status $premium_expiry
     fi
     
 }
